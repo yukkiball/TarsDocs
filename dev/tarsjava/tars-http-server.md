@@ -2,7 +2,7 @@
 
 ## 功能说明
 
-Tars平台支持HTTP服务的部署，使用@TarsHttpService注解即可将服务标记为HTTP服务。HTTP服务发布到平台后可以直接使用http请求来调用，
+Tars平台支持HTTP服务的部署，使用@TarsHttpService注解即可将服务标记为HTTP服务。HTTP服务发布到平台后可以直接使用http请求来调用。
 
 
 
@@ -196,8 +196,6 @@ HTTP服务发布的的流程和[Tars服务发布](dev/tarsjava/tars-quick-start.
 
 ## 服务调用
 
+服务发布成功之后，即可通过http调用的方式来调用该服务，**注意IP地址为公网IP，非设置的内网的IP**：
+
 ![tars-http-call](images/tars-http-call.png)
-
-
-
-服务发布成功之后，即可通过http调用的方式来调用该服务，**注意IP地址为公网IP，非设置的内网的IP**。
