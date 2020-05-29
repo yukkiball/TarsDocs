@@ -13,20 +13,15 @@
 本节主要介绍采用 docker 来完成框架的部署:
 
 - framework: Tars 框架 Docker 制作脚本, 制作的 docker 包含了框架核心服务和 web 管理平台
-- tars: Tars 框架 Docker 制作脚本, 和 framework 比, 增加了 java, nodejs 等运行时支持, 即可以把 java, nodejs 服务发布到 docker 里面(docker 里面安装了 jdk, node, php 环境)
-- 在本地开发环境中也可以使用`tarscloud/tars`镜像来替代 framework+node， tarscloud/tars 镜像是一个 framework+node 的集合环境镜像
+- tars-node: tarsnode节点的镜像，包含各语言的运行时环境，可以将服务发布到tars-node容器中
 
-Docker 开发环境部署可以很方便的在本地拉起服务开始服务的部署、开发和测试。开发环境部署采用单机多容器的部署方式模拟生产环境的服务部署结构。Docker 生产环境部署为生产主机部署 tars 服务提供参考，相关参数需要根据具体环境变更调整。
+Docker 开发环境部署可以很方便的在本地拉起服务开始服务的部署、开发和测试。开发环境部署采用单机多容器的部署方式模拟生产环境的服务部署结构。Docker 生产环境部署为生产主机部署 Tars 服务提供参考，相关参数需要根据具体环境变更调整。
 
 开始操作之前，请确保你的服务上已经安装了 docker 环境, 如果没有, 可以参考[docker install](docker-install.md)
 
 ## 2 <a id="chapter-2"></a>Docker 部署服务开发环境
 
 **如果你想源码自己编译 docker, 请参见 [Install](source.md)**
-
-使用 docker 安装 Tars 框架, 有两个镜像可供选择: framework / tars
-
-**注意: 区别在于是否希望把业务服务部署在镜像内(不推荐, 不方便 Tars 框架升级)**
 
 #### 2.1 创建 docker 虚拟网络
 
@@ -43,7 +38,7 @@ docker network create -d bridge --subnet=172.25.0.0/16 --gateway=172.25.0.1 tars
 - 注意 MySQL 的 IP 和 root 密码，后续构建中需要使用
 
 ```
-docker run -d \
+docker run -d -p 3306:3306 \
     --net=tars \
     -e MYSQL_ROOT_PASSWORD="123456" \
     --ip="172.25.0.2" \
@@ -63,16 +58,16 @@ docker run -d \
 docker pull tarscloud/framework:latest
 ```
 
-稳定版本:
+指定版本:
 
 ```sh
-docker pull tarscloud/framework:stable
+docker pull tarscloud/framework:v{x.y.z}
 ```
+
+**推荐使用指定版本，如：`v2.4.0`，便于开发和生产环境的部署，后期需要升级时可选择更新的版本tag，升级之前请先查看GitHub的changelog，避免升级到不兼容的版本造成损失。**
 
 2. 启动镜像(目前只考虑了 linux 上, 时间和本机同步)
 
-最新版本:
-
 ```sh
 # 挂载的/etc/localtime是用来设置容器时区的，若没有可以去掉
 # 3000端口为web程序端口
@@ -92,38 +87,14 @@ docker run -d \
     -v /etc/localtime:/etc/localtime \
     -p 3000:3000 \
     -p 3001:3001 \
-    tarscloud/framework:latest
-```
-
-稳定版本:
-
-```sh
-# 挂载的/etc/localtime是用来设置容器时区的，若没有可以去掉
-# 3000端口为web程序端口
-# 3001端口为web授权相关服务端口
-docker run -d \
-    --name=tars-framework \
-    --net=tars \
-    -e MYSQL_HOST="172.25.0.2" \
-    -e MYSQL_ROOT_PASSWORD="123456" \
-    -e MYSQL_USER=root \
-    -e MYSQL_PORT=3306 \
-    -e REBUILD=false \
-    -e INET=eth0 \
-    -e SLAVE=false \
-    --ip="172.25.0.3" \
-    -v /data/framework:/data/tars \
-    -v /etc/localtime:/etc/localtime \
-    -p 3000:3000 \
-    -p 3001:3001 \
-    tarscloud/framework:stable
+    tarscloud/framework:v2.4.0
 ```
 
 安装完毕后, 访问 `http://${your_machine_ip}:3000` 打开 web 管理平台
 
 3. 目录说明
 
-创建时, 会将 docker 的目录/data/tars 映射到宿主机目录/data/tars, 启动 docker 后, 请检查宿主机目录: /data/tars, 正常情况下会有创建以下几个目录:
+创建时, 会将 docker 的目录/data/tars 映射到宿主机目录/data/framework, 启动 docker 后, 请检查宿主机目录: /data/tars, 正常情况下会有创建以下几个目录:
 
 - app_log: tars 服务的日志目录
 - tarsnode-data: tarsnode/data 目录(存放发布到 docker 的业务服务), 保证 docker 重启, 数据不丢失
@@ -153,8 +124,6 @@ MYSQL_PORT: mysql 端口
 
 **如果希望多节点部署, 则在不同机器上执行 docker run ...即可, 注意参数设置!**
 
-最新版本:
-
 ```sh
 docker run -d \
     --name=tars-framework-slave \
@@ -169,26 +138,7 @@ docker run -d \
     --ip="172.25.0.4" \
     -v /data/framework-slave:/data/tars \
     -v /etc/localtime:/etc/localtime \
-    docker.tarsyun.com/tarscloud/framework:latest
-```
-
-稳定版本:
-
-```sh
-docker run -d \
-    --name=tars-framework-slave \
-    --net=tars \
-    -e MYSQL_HOST="172.25.0.2" \
-    -e MYSQL_ROOT_PASSWORD="123456" \
-    -e MYSQL_USER=root \
-    -e MYSQL_PORT=3306 \
-    -e REBUILD=false \
-    -e INET=eth0 \
-    -e SLAVE=true \
-    --ip="172.25.0.4" \
-    -v /data/framework-slave:/data/tars \
-    -v /etc/localtime:/etc/localtime \
-    docker.tarsyun.com/tarscloud/framework:stable
+    docker.tarsyun.com/tarscloud/framework:v2.4.0
 ```
 
 **注意:SLAVE 参数不同**
@@ -203,12 +153,6 @@ docker run -d \
 
 ```sh
 docker pull tarscloud/tars-node:latest
-```
-
-稳定版本
-
-```sh
-docker pull tarscloud/tars-node:stable
 ```
 
 2. 启动 Node(目前只考虑了 linux 上, 时间和本机同步)
@@ -226,21 +170,6 @@ docker run -d \
     -v /etc/localtime:/etc/localtime \
     -p 9000-9010:9000-9010 \
     tarscloud/tars-node:latest
-```
-
-稳定版本:
-
-```sh
-docker run -d \
-    --name=tars-node \
-    --net=tars \
-    -e INET=eth0 \
-    -e WEB_HOST="http://172.25.0.3:3000" \
-    --ip="172.25.0.5" \
-    -v /data/node:/data/app \
-    -v /etc/localtime:/etc/localtime \
-    -p 9000-9010:9000-9010 \
-    tarscloud/tars-node:stable
 ```
 
 - 初始开放了 9000~9010 端口供应用使用，若不够可自行添加
@@ -266,7 +195,7 @@ docker run -d \
     -e INET=eth0 \
     -v /etc/localtime:/etc/localtime \
     -v /tmp/test/data:/data/tars \
-    tarscloud/framework:stable
+    tarscloud/framework:v2.4.0
 ```
 
 ### 3.2 Docker 部署 Tars 应用节点
@@ -282,7 +211,7 @@ docker run -d \
     -e WEB_HOST="The Accessible Http Address and Port Of Your Tars Framework" \
     -v /data/tars:/data/app \
     -v /etc/localtime:/etc/localtime \
-    tarscloud/tars-node:stable
+    tarscloud/tars-node:latest
 ```
 
 ## 4 <a id="chapter-4"></a>问题检查
@@ -292,8 +221,6 @@ docker run -d \
 - 关闭 docker, 注意需要用 docker stop .... 来关闭(docker 的使用请自行搜索)
 - 启动镜像, 注意不要 -d 参数
 
-最新版本:
-
 ```sh
 docker --name=tars-framework \
     --net=tars \
@@ -309,27 +236,7 @@ docker --name=tars-framework \
     -v /etc/localtime:/etc/localtime \
     -p 3000:3000 \
     -p 3001:3001 \
-    tarscloud/framework:latest
-```
-
-稳定版本:
-
-```sh
-docker --name=tars-framework \
-    --net=tars \
-    -e MYSQL_HOST="172.25.0.2" \
-    -e MYSQL_ROOT_PASSWORD="123456" \
-    -e MYSQL_USER=root \
-    -e MYSQL_PORT=3306 \
-    -e REBUILD=false \
-    -e INET=eth0 \
-    -e SLAVE=false \
-    --ip="172.25.0.3" \
-    -v /data/framework:/data/tars \
-    -v /etc/localtime:/etc/localtime \
-    -p 3000:3000 \
-    -p 3001:3001 \
-    tarscloud/framework:stable
+    tarscloud/framework:v2.4.0
 ```
 
 - 查看 docker 输出是否有明显问题
@@ -372,7 +279,7 @@ services:
       internal:
         ipv4_address: 172.25.1.2
   framework:
-    image: tarscloud/framework:stable
+    image: tarscloud/framework:v2.4.0
     container_name: tars-framework
     ports:
       - "3000:3000"
@@ -395,7 +302,7 @@ services:
     depends_on:
       - mysql
   node:
-    image: tarscloud/tars-node:stable
+    image: tarscloud/tars-node:latest
     container_name: tars-node
     restart: always
     networks:
